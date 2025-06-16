@@ -4,7 +4,8 @@ from mysql.connector import Error
 from flask_bcrypt import check_password_hash
 from datetime import datetime
 import os
-
+import pytz
+IST = pytz.timezone('Asia/Kolkata')
 def connect():
     try:
         return mysql.connector.connect(
@@ -126,28 +127,32 @@ def get_payment_history(manager_id):
     finally:
         cursor.close()
         conn.close()
-
-def add_customer(box_number, mobile_number, name, email, password, plan_amount, address, manager_id, is_temp_password=False):
-    conn = connect()
+        
+def add_payment(customer_id, manager_id, amount, payment_mode, payment_status, payment_reference,payment_date=None, created_at=None):
+    conn = connect()  # Assuming connect() is defined elsewhere
     if not conn:
-        print("Database connection failed in add_customer")
         return False, "Database connection failed"
     try:
         cursor = conn.cursor()
+        # Set session timezone to IST
+        cursor.execute("SET time_zone = 'Asia/Kolkata'")
+        
+        # Get current timestamp in IST
+        ist_timestamp = datetime.now(IST)
+        
         cursor.execute("""
-            INSERT INTO customers (box_number, mobile_number, name, email, password, plan_amount, address, manager_id, is_temp_password)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (box_number, mobile_number, name, email, password, plan_amount, address, manager_id, is_temp_password))
+            INSERT INTO payments (customer_id, manager_id, amount, payment_mode, payment_status, payment_reference, payment_date, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (customer_id, manager_id, amount, payment_mode, payment_status, payment_reference, ist_timestamp, ist_timestamp))
         conn.commit()
-
-        return True, "Customer added successfully"
+        return True, "Payment recorded successfully"
     except Error as e:
         conn.rollback()
-        print(f"Error adding customer: {str(e)}")
-        return False, f"Error: {str(e)}"
+        return False, f"Error recording payment: {str(e)}"
     finally:
         cursor.close()
         conn.close()
+
 
 def update_customer(customer_id, box_number, mobile_number, name, email, password, plan_amount, address, is_temp_password):
     conn = connect()
