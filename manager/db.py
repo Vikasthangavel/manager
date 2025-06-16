@@ -303,21 +303,24 @@ def update_customer_balance(customer_id, amount):
         cursor.close()
         conn.close()
 
-def add_payment(customer_id, manager_id, amount, payment_mode, payment_status, payment_reference):
+def add_customer(box_number, mobile_number, name, email, password, plan_amount, address, manager_id, is_temp_password=False):
     conn = connect()
     if not conn:
+        print("Database connection failed in add_customer")
         return False, "Database connection failed"
     try:
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO payments (customer_id, manager_id, amount, payment_mode, payment_status, payment_reference)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (customer_id, manager_id, amount, payment_mode, payment_status, payment_reference))
+            INSERT INTO customers (box_number, mobile_number, name, email, password, plan_amount, address, manager_id, is_temp_password)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (box_number, mobile_number, name, email, password, plan_amount, address, manager_id, is_temp_password))
         conn.commit()
-        return True, "Payment recorded successfully"
+
+        return True, "Customer added successfully"
     except Error as e:
         conn.rollback()
-        return False, f"Error recording payment: {str(e)}"
+        print(f"Error adding customer: {str(e)}")
+        return False, f"Error: {str(e)}"
     finally:
         cursor.close()
         conn.close()
