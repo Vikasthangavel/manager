@@ -1,6 +1,4 @@
-from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, session
-import pytz
 from db import get_manager_by_email_and_password, get_all_customers, add_customer, update_customer, delete_customer, add_pending_manager, update_customer_balance, add_payment, get_payment_history
 from flask_bcrypt import Bcrypt
 from dotenv import load_dotenv
@@ -13,7 +11,7 @@ from email.mime.multipart import MIMEMultipart
 
 # Load environment variables
 load_dotenv()
-IST = pytz.timezone('Asia/Kolkata')
+
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'manager_secret_key')
 bcrypt = Bcrypt(app)
@@ -351,17 +349,7 @@ def pay_offline(customer_id):
             return redirect(url_for('manager_dashboard'))
         
         # Add payment record
-        ist_timestamp = datetime.now(IST)
-        success, message = add_payment(
-            customer_id=customer_id,
-            manager_id=customer['manager_id'],
-            amount=amount,
-            payment_mode='offline',
-            payment_status='completed',
-            payment_reference="NONE",
-            payment_date=ist_timestamp,
-            created_at=ist_timestamp
-        )
+        success, message = add_payment(customer_id, manager_id, amount, 'offline', 'completed', None)
         if not success:
             flash(message, 'error')
             return redirect(url_for('manager_dashboard'))
