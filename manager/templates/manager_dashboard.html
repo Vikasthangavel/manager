@@ -388,7 +388,7 @@
                             <thead class="bg-teal-light">
                                 <tr>
                                     <th class="p-4">Bill ID</th>
-                                    <th class="p-4">Customer Name</th>
+                                    <th class="p-4">Customer ID</th>
                                     <th class="p-4">Amount</th>
                                     <th class="p-4">Payment Mode</th>
                                     <th class="p-4">Status</th>
@@ -405,7 +405,7 @@
                                     {% for payment in payments %}
                                         <tr class="border-b hover:bg-teal-background" data-customer-id="{{ payment.customer_id }}" data-status="{{ payment.payment_status | lower }}" data-date="{{ payment.payment_date.strftime('%Y-%m-%d %H:%M:%S') }}">
                                             <td class="p-4" data-label="Bill ID:">{{ payment.id }}</td>
-                                            <td class="p-4" data-label="Customer Name:">{{ payment.customer_name }}</td>
+                                            <td class="p-4" data-label="Customer Name:">{{ payment.customer_id }}</td>
                                             <td class="p-4" data-label="Amount:">₹{{ payment.amount }}</td>
                                             <td class="p-4" data-label="Payment Mode:">{{ payment.payment_mode | capitalize }}</td>
                                             <td class="p-4 status-{{ payment.payment_status | lower }}" data-label="Status:">{{ payment.payment_status | capitalize }}</td>
