@@ -260,7 +260,6 @@ def add_all_bills():
     flash(f'Bills added successfully for {success_count} customers.', 'success')
     return redirect(url_for('manager_dashboard'))
 
-# Pay offline
 @app.route('/pay_offline/<int:customer_id>', methods=['POST'])
 @manager_required
 def pay_offline(customer_id):
@@ -278,7 +277,17 @@ def pay_offline(customer_id):
             return redirect(url_for('manager_dashboard'))
         
         # Add payment record
-        success, message = add_payment(customer_id, manager_id, amount, 'offline', 'completed', None)
+        ist_timestamp = datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes=30)))
+        success, message = add_payment(
+            customer_id=customer_id,
+            manager_id=customer['manager_id'],
+            amount=amount,
+            payment_mode='offline',  # Fixed: Changed to 'offline' to match route intent
+            payment_status='completed',
+            payment_reference=None,  # Fixed: order_id was undefined, set to None for offline payments
+            payment_date=ist_timestamp,
+            created_at=ist_timestamp
+        )
         if not success:
             flash(message, 'error')
             return redirect(url_for('manager_dashboard'))
