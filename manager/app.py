@@ -8,10 +8,11 @@ import string
 import random
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-
+import pytz
 # Load environment variables
 load_dotenv()
-
+# Set timezone to Asia/Kolkata
+IST = pytz.timezone('Asia/Kolkata')
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'manager_secret_key')
 bcrypt = Bcrypt(app)
@@ -277,7 +278,7 @@ def pay_offline(customer_id):
             return redirect(url_for('manager_dashboard'))
         
         # Add payment record
-        ist_timestamp = datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes=30)))
+        ist_timestamp = datetime.now(IST)
         success, message = add_payment(
             customer_id=customer_id,
             manager_id=customer['manager_id'],
