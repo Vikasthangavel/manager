@@ -1,0 +1,1 @@
+get_manager_by_email_and_password(email, password)
