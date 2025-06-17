@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,27 +19,56 @@
         .hover:bg-teal-dark:hover { background-color: #006666; }
         .hover:bg-teal-light:hover { background-color: #00A3A3; }
 
+        /* Dark theme overrides */
+        [data-theme="dark"] {
+            background-color: #1F2A44;
+            color: #E6F5F5;
+        }
+        [data-theme="dark"] .bg-teal-background {
+            background-color: #2A3B5A;
+        }
+        [data-theme="dark"] .text-dark-gray {
+            color: #E6F5F5;
+        }
+        [data-theme="dark"] .bg-white {
+            background-color: #2A3B5A;
+        }
+        [data-theme="dark"] .bg-teal-primary {
+            background-color: #007373;
+        }
+        [data-theme="dark"] .bg-teal-light {
+            background-color: #008585;
+        }
+        [data-theme="dark"] .hover:bg-teal-dark:hover {
+            background-color: #005555;
+        }
+        [data-theme="dark"] .border {
+            border-color: #4B5EAA;
+        }
+
         /* Popup styles */
-        #notificationPopup {
+        #notificationPopup, #detailsPopup {
             position: fixed;
-            top: 20px;
-            right: 20px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             z-index: 1000;
-            width: 300px;
-            padding: 1rem;
+            width: 90%;
+            max-width: 400px;
+            padding: 1.5rem;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             display: none;
         }
-        .notification-success {
-            background-color: #00A3A3;
+        .notification-success, .details-popup {
+            background-color: #00a3a3;
             color: #1F2A44;
         }
         .notification-error {
             background-color: #EF4444;
             color: white;
         }
-        .notification-close {
+        .notification-close, .details-close {
             position: absolute;
             top: 8px;
             right: 8px;
@@ -162,6 +191,29 @@
                 margin-left: 16rem; /* Match sidebar width */
             }
         }
+
+        /* Pagination styles */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .pagination button {
+            padding: 0.5rem 1rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.25rem;
+            background-color: #fff;
+            cursor: pointer;
+        }
+        .pagination button:hover {
+            background-color: #00A3A3;
+            color: white;
+        }
+        .pagination button.disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
     </style>
 </head>
 <body class="bg-teal-background text-dark-gray font-sans">
@@ -174,6 +226,12 @@
     <div id="notificationPopup">
         <span id="notificationMessage"></span>
         <span class="notification-close" onclick="closeNotification()">✖</span>
+    </div>
+
+    <!-- Details Popup -->
+    <div id="detailsPopup" class="details-popup">
+        <span id="detailsContent"></span>
+        <span class="details-close" onclick="closeDetailsPopup()">✖</span>
     </div>
 
     <!-- Sidebar Navigation -->
@@ -198,6 +256,9 @@
                     </button>
                     <h1 class="text-xl font-semibold ml-4">Manager Dashboard</h1>
                 </div>
+                <button id="themeToggle" class="bg-teal-light text-white px-3 py-1 rounded-lg hover:bg-teal-dark">
+                    <i class="fas fa-moon"></i> Toggle Theme
+                </button>
             </header>
 
             <!-- Main Content -->
@@ -244,7 +305,15 @@
                         <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
                             <div class="flex flex-col md:flex-row gap-4 w-full md:w-auto">
                                 <input type="text" id="box_number_search" placeholder="Search by Box Number" class="border rounded-lg p-2 w-full md:w-48 focus:outline-none focus:ring-2 focus:ring-teal-light">
-                                <input type="number" id="balance_search" step="0.01" placeholder="Search by Balance" class="border rounded-lg p-2 w-full md:w-48 focus:outline-none focus:ring-2 focus:ring-teal-light">
+                                <input type="text" id="phone_number_search" placeholder="Search by Phone Number" class="border rounded-lg p-2 w-full md:w-48 focus:outline-none focus:ring-2 focus:ring-teal-light">
+                                <div class="flex items-center gap-2 w-full md:w-auto">
+                                    <input type="number" id="balance_search" step="0.01" placeholder="Balance" class="border rounded-lg p-2 w-full md:w-32 focus:outline-none focus:ring-2 focus:ring-teal-light">
+                                    <select id="balance_operator" class="border rounded-lg p-2 w-full md:w-32 focus:outline-none focus:ring-2 focus:ring-teal-light">
+                                        <option value="gte">Greater than</option>
+                                        <option value="lte">Less than</option>
+                                        <option value="eq">Equal to</option>
+                                    </select>
+                                </div>
                                 <select id="filter" class="border rounded-lg p-2 w-full md:w-48 focus:outline-none focus:ring-2 focus:ring-teal-light">
                                     <option value="all">All Customers</option>
                                     <option value="paid">Paid Customers</option>
@@ -282,27 +351,7 @@
                                         <td class="p-4">{{ customer.mobile_number }}</td>
                                         <td class="p-4">{{ customer.balance }}</td>
                                         <td class="p-4 flex gap-2">
-                                            <button onclick="showMoreDetails({{ customer.id }})" class="bg-teal-primary text-white px-3 py-1 rounded hover:bg-teal-dark">Show More</button>
-                                        </td>
-                                    </tr>
-                                    <tr id="details-{{ customer.id }}" class="hidden border-b">
-                                        <td colspan="5" class="p-4">
-                                            <div class="space-y-2">
-                                                <p><strong>Id:</strong> {{ customer.id }}</p>
-                                                <p><strong>Email:</strong> {{ customer.email }}</p>
-                                                <p><strong>Plan Amount:</strong> {{ customer.plan_amount }}</p>
-                                                <p><strong>Address:</strong> {{ customer.address }}</p>
-                                                <div class="flex gap-2">
-                                                    <button onclick="showEditModal({{ customer.id }}, '{{ customer.box_number }}', '{{ customer.name }}', '{{ customer.mobile_number }}', '{{ customer.email }}', '{{ customer.plan_amount }}', '{{ customer.address }}')" class="bg-teal-primary text-white px-3 py-1 rounded hover:bg-teal-dark">Edit</button>
-                                                    <form method="POST" action="{{ url_for('delete_customer_route', customer_id=customer.id) }}">
-                                                        <button type="submit" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">Delete</button>
-                                                    </form>
-                                                    <form action="{{ url_for('add_bill', customer_id=customer.id) }}" method="POST">
-                                                        <button type="submit" class="bg-teal-light text-white px-3 py-1 rounded hover:bg-teal-dark">Add Bill</button>
-                                                    </form>
-                                                    <button onclick="showPaymentModal({{ customer.id }}, {{ customer.balance }})" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Pay Offline</button>
-                                                </div>
-                                            </div>
+                                            <button onclick="showDetailsPopup({{ customer.id }}, '{{ customer.box_number }}', '{{ customer.name }}', '{{ customer.mobile_number }}', '{{ customer.email }}', '{{ customer.plan_amount }}', '{{ customer.address }}')" class="bg-teal-primary text-white px-3 py-1 rounded hover:bg-teal-dark">Show More</button>
                                         </td>
                                     </tr>
                                 {% endfor %}
@@ -315,15 +364,11 @@
                         {% for customer in customers %}
                             <div class="bg-white p-4 rounded-lg shadow-md">
                                 <p><strong>Box No:</strong> {{ customer.box_number }}</p>
-                                <p><strong>Name:</strong> {{ customer.id }}</p>
+                                <p><strong>Name:</strong> {{ customer.name }}</p>
                                 <p><strong>Mobile:</strong> {{ customer.mobile_number }}</p>
                                 <p><strong>Balance:</strong> {{ customer.balance }}</p>
-                                <button onclick="toggleMobileDetails({{ customer.id }})" class="text-teal-primary mt-2">Show More</button>
+                                <button onclick="showDetailsPopup({{ customer.id }}, '{{ customer.box_number }}', '{{ customer.name }}', '{{ customer.mobile_number }}', '{{ customer.email }}', '{{ customer.plan_amount }}', '{{ customer.address }}')" class="text-teal-primary mt-2">Show More</button>
                                 <div id="mobile-details-{{ customer.id }}" class="hidden mt-4 space-y-2">
-                                    <p><strong>ID:</strong> {{ customer.id }}</p>
-                                    <p><strong>Email:</strong> {{ customer.email }}</p>
-                                    <p><strong>Plan Amount:</strong> {{ customer.plan_amount }}</p>
-                                    <p><strong>Address:</strong> {{ customer.address }}</p>
                                     <div class="flex flex-col gap-2">
                                         <button onclick="showEditModal({{ customer.id }}, '{{ customer.box_number }}', '{{ customer.name }}', '{{ customer.mobile_number }}', '{{ customer.email }}', '{{ customer.plan_amount }}', '{{ customer.address }}')" class="bg-teal-primary text-white px-4 py-2 rounded hover:bg-teal-dark">Edit</button>
                                         <form method="POST" action="{{ url_for('delete_customer_route', customer_id=customer.id) }}">
@@ -421,6 +466,12 @@
                             </tbody>
                         </table>
                     </div>
+                    <!-- Pagination Controls -->
+                    <div class="pagination" id="pagination">
+                        <button onclick="changePage('prev')" class="disabled" id="prevPage">Previous</button>
+                        <span id="pageInfo"></span>
+                        <button onclick="changePage('next')" id="nextPage">Next</button>
+                    </div>
                 </section>
             </main>
         </div>
@@ -469,6 +520,15 @@
     </div>
 
     <script>
+        // Theme toggle
+        const themeToggleBtn = document.getElementById('themeToggle');
+        themeToggleBtn.addEventListener('click', () => {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            html.setAttribute('data-theme', currentTheme === 'light' ? 'dark' : 'light');
+            themeToggleBtn.innerHTML = `<i class="fas fa-${currentTheme === 'light' ? 'sun' : 'moon'}"></i> Toggle Theme`;
+        });
+
         // Show loading overlay
         function showLoading() {
             document.getElementById('loadingOverlay').style.display = 'flex';
@@ -498,18 +558,40 @@
             document.getElementById(id).classList.remove('hidden');
             sidebar.classList.add('-translate-x-full');
             document.body.classList.remove('sidebar-open');
+            if (id === 'payments') {
+                updatePagination();
+            }
         }
 
-        // Toggle details for desktop table
-        function showMoreDetails(id) {
-            const detailsRow = document.getElementById(`details-${id}`);
-            detailsRow.classList.toggle('hidden');
+        // Show details in popup
+        function showDetailsPopup(id, boxNumber, name, mobileNumber, email, planAmount, address) {
+            const popup = document.getElementById('detailsPopup');
+            const content = document.getElementById('detailsContent');
+            content.innerHTML = `
+                <p><strong>Id:</strong> ${id}</p>
+                <p><strong>Box Number:</strong> ${boxNumber}</p>
+                <p><strong>Name:</strong> ${name}</p>
+                <p><strong>Mobile:</strong> ${mobileNumber}</p>
+                <p><strong>Email:</strong> ${email}</p>
+                <p><strong>Plan Amount:</strong> ${planAmount}</p>
+                <p><strong>Address:</strong> ${address}</p>
+                <div class="flex gap-2 mt-4">
+                    <button onclick="showEditModal(${id}, '${boxNumber}', '${name}', '${mobileNumber}', '${email}', '${planAmount}', '${address}')" class="bg-teal-primary text-white px-3 py-1 rounded hover:bg-teal-dark">Edit</button>
+                    <form method="POST" action="/delete_customer/${id}">
+                        <button type="submit" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">Delete</button>
+                    </form>
+                    <form action="/add_bill/${id}" method="POST">
+                        <button type="submit" class="bg-teal-light text-white px-3 py-1 rounded hover:bg-teal-dark">Add Bill</button>
+                    </form>
+                    <button onclick="showPaymentModal(${id}, ${planAmount})" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Pay Offline</button>
+                </div>
+            `;
+            popup.style.display = 'block';
         }
 
-        // Toggle details for mobile cards
-        function toggleMobileDetails(id) {
-            const detailsDiv = document.getElementById(`mobile-details-${id}`);
-            detailsDiv.classList.toggle('hidden');
+        // Close details popup
+        function closeDetailsPopup() {
+            document.getElementById('detailsPopup').style.display = 'none';
         }
 
         // Store customer data in a JavaScript array
@@ -524,10 +606,9 @@
         ];
 
         // Store original bill table content for reset
-        const originalTableContent = $('#bill-table-body').html();
-
-        // Sorting state
-        let sortDirection = 'none'; // 'none', 'asc', 'desc'
+        let originalTableContent = $('#bill-table-body').html();
+        let currentPage = 1;
+        const itemsPerPage = 10;
 
         // Filter bills by mobile number, status, and date range
         function filterBills() {
@@ -551,7 +632,7 @@
             tableBody.empty();
 
             // Apply filters
-            let hasBills = false;
+            let filteredRows = [];
             rows.each(function() {
                 const row = $(this);
                 const customerId = parseInt(row.data('customer-id'));
@@ -587,18 +668,65 @@
                 }
 
                 if (showRow) {
-                    tableBody.append(row.clone());
-                    hasBills = true;
+                    filteredRows.push(row.clone());
                 }
+            });
+
+            // Update original table content with filtered rows
+            originalTableContent = filteredRows.map(row => row[0].outerHTML).join('');
+
+            // Reset to first page
+            currentPage = 1;
+            updatePagination();
+        }
+
+        // Update pagination
+        function updatePagination() {
+            const tableBody = $('#bill-table-body');
+            const rows = $(originalTableContent);
+            const totalItems = rows.length;
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+            // Clear table body
+            tableBody.empty();
+
+            // Calculate start and end indices
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+
+            // Display rows for current page
+            let hasBills = false;
+            rows.slice(startIndex, endIndex).each(function() {
+                tableBody.append($(this));
+                hasBills = true;
             });
 
             if (!hasBills) {
                 tableBody.html('<tr><td colspan="6" class="p-4 text-center">No bills found for the given criteria.</td></tr>');
             }
 
-            // Reset sorting after filtering
-            sortDirection = 'none';
-            updateSortIcon();
+            // Update pagination controls
+            const prevButton = $('#prevPage');
+            const nextButton = $('#nextPage');
+            const pageInfo = $('#pageInfo');
+
+            prevButton.toggleClass('disabled', currentPage === 1);
+            nextButton.toggleClass('disabled', currentPage === totalPages || totalItems === 0);
+            pageInfo.text(totalItems > 0 ? `Page ${currentPage} of ${totalPages}` : 'No bills');
+        }
+
+        // Change page
+        function changePage(direction) {
+            const totalItems = $(originalTableContent).length;
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+            if (direction === 'prev' && currentPage > 1) {
+                currentPage--;
+            } else if (direction === 'next' && currentPage < totalPages) {
+                currentPage++;
+            }
+
+            updatePagination();
         }
 
         // Sort table by date
@@ -627,10 +755,12 @@
                 return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
             });
 
-            tableBody.empty();
-            $.each(rows, function(index, row) {
-                tableBody.append(row);
-            });
+            // Update original table content
+            originalTableContent = rows.map(row => row.outerHTML).join('');
+
+            // Reset to first page
+            currentPage = 1;
+            updatePagination();
         }
 
         // Update sort icon based on direction
@@ -652,7 +782,9 @@
             $('#start_date_filter').val('');
             $('#end_date_filter').val('');
             $('#status_filter').val('all');
-            filterBills();
+            originalTableContent = $('#bill-table-body').html();
+            currentPage = 1;
+            updatePagination();
         }
 
         // Validate mobile number input (allow only digits)
@@ -729,7 +861,6 @@
                     hideLoading();
                     showNotification('Payment submitted successfully.', 'success');
                     closePaymentModal();
-                    // Optionally refresh the page or update the table
                     setTimeout(() => location.reload(), 2000);
                 },
                 error: function(xhr) {
@@ -744,13 +875,16 @@
         function filterTable() {
             showLoading();
             const boxNumberSearch = $('#box_number_search').val().toLowerCase();
+            const phoneNumberSearch = $('#phone_number_search').val().toLowerCase();
             const balanceSearch = parseFloat($('#balance_search').val());
+            const balanceOperator = $('#balance_operator').val();
             const filter = $('#filter').val();
 
             // Filter desktop table
             $('#customer-table tbody tr').each(function() {
                 const row = $(this);
                 const boxNumberCell = row.find('td').eq(0).text().toLowerCase(); // Box Number in first column
+                const phoneNumberCell = row.find('td').eq(2).text().toLowerCase(); // Mobile Number in third column
                 const balanceCell = parseFloat(row.find('td').eq(3).text()); // Balance in fourth column
 
                 let showRow = true;
@@ -759,8 +893,18 @@
                     showRow = false;
                 }
 
-                if (!isNaN(balanceSearch) && balanceCell !== balanceSearch) {
+                if (phoneNumberSearch && !phoneNumberCell.includes(phoneNumberSearch)) {
                     showRow = false;
+                }
+
+                if (!isNaN(balanceSearch)) {
+                    if (balanceOperator === 'gte' && balanceCell < balanceSearch) {
+                        showRow = false;
+                    } else if (balanceOperator === 'lte' && balanceCell > balanceSearch) {
+                        showRow = false;
+                    } else if (balanceOperator === 'eq' && balanceCell !== balanceSearch) {
+                        showRow = false;
+                    }
                 }
 
                 if (filter === 'paid' && balanceCell !== 0) {
@@ -776,6 +920,7 @@
             $('.md\\:hidden .bg-white').each(function() {
                 const card = $(this);
                 const boxNumber = card.find('p').eq(0).text().split(':')[1].trim().toLowerCase(); // Box Number
+                const phoneNumber = card.find('p').eq(2).text().split(':')[1].trim().toLowerCase(); // Mobile Number
                 const balance = parseFloat(card.find('p').eq(3).text().split(':')[1].trim()); // Balance
 
                 let showCard = true;
@@ -784,8 +929,18 @@
                     showCard = false;
                 }
 
-                if (!isNaN(balanceSearch) && balance !== balanceSearch) {
+                if (phoneNumberSearch && !phoneNumber.includes(phoneNumberSearch)) {
                     showCard = false;
+                }
+
+                if (!isNaN(balanceSearch)) {
+                    if (balanceOperator === 'gte' && balance < balanceSearch) {
+                        showCard = false;
+                    } else if (balanceOperator === 'lte' && balance > balanceSearch) {
+                        showCard = false;
+                    } else if (balanceOperator === 'eq' && balance !== balanceSearch) {
+                        showCard = false;
+                    }
                 }
 
                 if (filter === 'paid' && balance !== 0) {
@@ -800,7 +955,7 @@
         }
 
         // Trigger filter on input change for view-customers section
-        $('#box_number_search, #balance_search, #filter').on('input change', function() {
+        $('#box_number_search, #phone_number_search, #balance_search, #balance_operator, #filter').on('input change', function() {
             filterTable();
         });
 
@@ -834,6 +989,7 @@
                     {% endfor %}
                 {% endif %}
             {% endwith %}
+            updatePagination();
         };
 
         // Add loading for form submissions
