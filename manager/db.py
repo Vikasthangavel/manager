@@ -1,25 +1,49 @@
 import os
 import mysql.connector
 from mysql.connector import Error
+from mysql.connector.pooling import MySQLConnectionPool
 from flask_bcrypt import check_password_hash
 from datetime import datetime
-
 import pytz
-
-
 
 # Set timezone to Asia/Kolkata
 IST = pytz.timezone('Asia/Kolkata')
-def connect():
-    return mysql.connector.connect(
-        host=os.getenv('DB_HOST', 'localhost'),
-        database=os.getenv('DB_NAME', 'time2cable'),
-        user=os.getenv('DB_USER', 'root'),
-        password=os.getenv('DB_PASSWORD', 'root')
-    )
+
+# Database configuration from environment variables
+db_config_writer = {
+    'host': os.getenv('DB_HOST_WRITER', 'time2due.cluster-cr02se4keuv4.ap-south-1.rds.amazonaws.com'),
+    'database': os.getenv('DB_NAME', 'Time2cable'),
+    'user': os.getenv('DB_USER_WRITER', 'root'),
+    'password': os.getenv('DB_PASSWORD_WRITER', 'Vikas5599')
+}
+
+db_config_reader = {
+    'host': os.getenv('DB_HOST_READER', 'time2due.cluster-ro-cr02se4keuv4.ap-south-1.rds.amazonaws.com'),
+    'database': os.getenv('DB_NAME', 'Time2cable'),
+    'user': os.getenv('DB_USER_READER', 'root'),
+    'password': os.getenv('DB_PASSWORD_READER', 'Vikas5599')
+}
+
+# Create connection pools
+writer_pool = MySQLConnectionPool(pool_name="writer_pool", pool_size=5, **db_config_writer)
+reader_pool = MySQLConnectionPool(pool_name="reader_pool", pool_size=5, **db_config_reader)
+
+def get_writer_connection():
+    try:
+        return writer_pool.get_connection()
+    except Error as e:
+        print(f"Error getting writer connection: {str(e)}")
+        return None
+
+def get_reader_connection():
+    try:
+        return reader_pool.get_connection()
+    except Error as e:
+        print(f"Error getting reader connection: {str(e)}")
+        return None
 
 def get_user_by_email_and_password(email, password):
-    conn = connect()
+    conn = get_reader_connection()
     if not conn:
         return None
     try:
@@ -32,32 +56,28 @@ def get_user_by_email_and_password(email, password):
         conn.close()
 
 def get_manager_by_email_and_password(email, password):
-    conn = connect()
+    conn = get_reader_connection()
     if not conn:
         return None
     try:
         cursor = conn.cursor(dictionary=True)
-        # Only use email in the SQL query, password is checked separately below
         cursor.execute("SELECT * FROM managers WHERE email = %s", (email,))
         manager = cursor.fetchone()
-        if manager:
-            if check_password_hash(manager['password'], password):
-                return manager
+        if manager and check_password_hash(manager['password'], password):
+            return manager
         return None
     finally:
         cursor.close()
         conn.close()
 
-
 def get_customer_by_mobile_and_password(mobile_number, password):
-    conn = connect()
+    conn = get_reader_connection()
     if not conn:
         return None
     try:
         cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT * FROM customers WHERE mobile_number = %s", (mobile_number,))
         customer = cursor.fetchone()
-        from flask_bcrypt import check_password_hash
         if customer and check_password_hash(customer['password'], password):
             return customer
         return None
@@ -66,32 +86,28 @@ def get_customer_by_mobile_and_password(mobile_number, password):
         conn.close()
 
 def get_all_customers(customer_id=None, manager_id=None):
-    conn = connect()
+    conn = get_reader_connection()
     if not conn:
         print("Database connection failed in get_all_customers")
         return []
     try:
         cursor = conn.cursor(dictionary=True)
         if customer_id:
-
             cursor.execute("""
                 SELECT id, box_number, mobile_number, name, email, plan_amount, address, created_at, manager_id, balance, is_temp_password
                 FROM customers WHERE id = %s
             """, (customer_id,))
         elif manager_id:
-
             cursor.execute("""
                 SELECT id, box_number, mobile_number, name, email, plan_amount, address, created_at, manager_id, balance, is_temp_password
                 FROM customers WHERE manager_id = %s
             """, (manager_id,))
         else:
-
             cursor.execute("""
                 SELECT id, box_number, mobile_number, name, email, plan_amount, address, created_at, manager_id, balance, is_temp_password
                 FROM customers
             """)
         customers = cursor.fetchall()
-
         return customers if customers else []
     except Error as e:
         print(f"Error fetching customers: {str(e)}")
@@ -101,7 +117,7 @@ def get_all_customers(customer_id=None, manager_id=None):
         conn.close()
 
 def get_payment_history(manager_id):
-    conn = connect()
+    conn = get_reader_connection()
     if not conn:
         print("Database connection failed in get_payment_history")
         return []
@@ -118,7 +134,6 @@ def get_payment_history(manager_id):
         for payment in payments:
             if isinstance(payment['payment_date'], str):
                 payment['payment_date'] = datetime.strptime(payment['payment_date'], '%Y-%m-%d %H:%M:%S')
-
         return payments if payments else []
     except Error as e:
         print(f"Error fetching payment history: {str(e)}")
@@ -128,7 +143,7 @@ def get_payment_history(manager_id):
         conn.close()
 
 def add_customer(box_number, mobile_number, name, email, password, plan_amount, address, manager_id, is_temp_password=False):
-    conn = connect()
+    conn = get_writer_connection()
     if not conn:
         print("Database connection failed in add_customer")
         return False, "Database connection failed"
@@ -139,7 +154,6 @@ def add_customer(box_number, mobile_number, name, email, password, plan_amount, 
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (box_number, mobile_number, name, email, password, plan_amount, address, manager_id, is_temp_password))
         conn.commit()
-
         return True, "Customer added successfully"
     except Error as e:
         conn.rollback()
@@ -150,7 +164,7 @@ def add_customer(box_number, mobile_number, name, email, password, plan_amount, 
         conn.close()
 
 def update_customer(customer_id, box_number, mobile_number, name, email, password, plan_amount, address, is_temp_password):
-    conn = connect()
+    conn = get_writer_connection()
     if not conn:
         return False, "Database connection failed"
     try:
@@ -177,7 +191,7 @@ def update_customer(customer_id, box_number, mobile_number, name, email, passwor
         conn.close()
 
 def delete_customer(customer_id):
-    conn = connect()
+    conn = get_writer_connection()
     if not conn:
         return False, "Database connection failed"
     try:
@@ -193,7 +207,7 @@ def delete_customer(customer_id):
         conn.close()
 
 def add_pending_manager(username, email, mobile_number, password):
-    conn = connect()
+    conn = get_writer_connection()
     if not conn:
         return False, "Database connection failed"
     try:
@@ -212,7 +226,7 @@ def add_pending_manager(username, email, mobile_number, password):
         conn.close()
 
 def get_pending_managers():
-    conn = connect()
+    conn = get_reader_connection()
     if not conn:
         return None
     try:
@@ -225,7 +239,7 @@ def get_pending_managers():
         conn.close()
 
 def approve_manager(pending_user_id):
-    conn = connect()
+    conn = get_writer_connection()
     if not conn:
         return False, "Database connection failed"
     try:
@@ -249,7 +263,7 @@ def approve_manager(pending_user_id):
         conn.close()
 
 def reject_manager(pending_user_id):
-    conn = connect()
+    conn = get_writer_connection()
     if not conn:
         return False, "Database connection failed"
     try:
@@ -265,26 +279,20 @@ def reject_manager(pending_user_id):
         conn.close()
 
 def update_customer_balance(customer_id, amount):
-    conn = connect()
+    conn = get_writer_connection()
     if not conn:
         return False, "Database connection failed"
     try:
         cursor = conn.cursor(dictionary=True)
-        # Get current balance
         cursor.execute("SELECT balance FROM customers WHERE id = %s", (customer_id,))
         customer = cursor.fetchone()
         if not customer:
             return False, "Customer not found"
-        
-        # Calculate new balance
         current_balance = float(customer['balance'])
         amount = float(amount)
         new_balance = current_balance + amount
-        
         if new_balance < 0:
             return False, "Balance cannot be negative"
-        
-        # Update balance
         cursor.execute(
             "UPDATE customers SET balance = %s WHERE id = %s",
             (new_balance, customer_id)
@@ -297,19 +305,15 @@ def update_customer_balance(customer_id, amount):
     finally:
         cursor.close()
         conn.close()
-       
-def add_payment(customer_id, manager_id, amount, payment_mode, payment_status, payment_reference,payment_date=None, created_at=None):
-    conn = connect()  # Assuming connect() is defined elsewhere
+
+def add_payment(customer_id, manager_id, amount, payment_mode, payment_status, payment_reference, payment_date=None, created_at=None):
+    conn = get_writer_connection()
     if not conn:
         return False, "Database connection failed"
     try:
         cursor = conn.cursor()
-        # Set session timezone to IST
         cursor.execute("SET time_zone = 'Asia/Kolkata'")
-        
-        # Get current timestamp in IST
         ist_timestamp = datetime.now(IST)
-        
         cursor.execute("""
             INSERT INTO payments (customer_id, manager_id, amount, payment_mode, payment_status, payment_reference, payment_date, created_at)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
