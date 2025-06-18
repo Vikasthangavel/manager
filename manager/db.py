@@ -11,18 +11,19 @@ IST = pytz.timezone('Asia/Kolkata')
 
 # Database configuration from environment variables
 db_config_writer = {
-    'host': os.getenv('DB_HOST_WRITER', 'time2due.cluster-cr02se4keuv4.ap-south-1.rds.amazonaws.com'),
-    'database': os.getenv('DB_NAME', 'Time2cable'),
+    'host': os.getenv('DB_HOST_WRITER', 'localhost'),
+    'database': os.getenv('DB_NAME', ''),
     'user': os.getenv('DB_USER_WRITER', 'root'),
-    'password': os.getenv('DB_PASSWORD_WRITER', 'Vikas5599')
+    'password': os.getenv('DB_PASSWORD_WRITER', 'root')
 }
 
 db_config_reader = {
-    'host': os.getenv('DB_HOST_READER', 'time2due.cluster-ro-cr02se4keuv4.ap-south-1.rds.amazonaws.com'),
-    'database': os.getenv('DB_NAME', 'Time2cable'),
+    'host': os.getenv('DB_HOST_READER', 'localhost'),
+    'database': os.getenv('DB_NAME', ''),
     'user': os.getenv('DB_USER_READER', 'root'),
-    'password': os.getenv('DB_PASSWORD_READER', 'Vikas5599')
+    'password': os.getenv('DB_PASSWORD_READER', 'root')
 }
+
 
 # Create connection pools
 writer_pool = MySQLConnectionPool(pool_name="writer_pool", pool_size=5, **db_config_writer)
