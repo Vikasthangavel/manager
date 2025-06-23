@@ -335,33 +335,28 @@ def add_all_bills():
 @app.route('/pay_offline/<int:customer_id>', methods=['POST'])
 @manager_required
 def pay_offline(customer_id):
-    manager_id = session['user_id']
+    manager_id = session.get('user_id')
     customers = get_all_customers(manager_id=manager_id)
     customer = next((c for c in customers if c['id'] == customer_id), None)
+    
     if not customer:
-        flash('Customer not found.', 'error')
-        return redirect(url_for('manager_dashboard'))
+        return jsonify({'success': False, 'error': 'Customer not found.'}), 404
     
     try:
-        amount = float(request.form['amount'])
+        amount = float(request.form.get('amount'))
+        if amount <= 0:
+            return jsonify({'success': False, 'error': 'Amount must be greater than zero.'}), 400
         if amount > float(customer['balance']):
-            flash('Payment amount cannot exceed current balance.', 'error')
-            return redirect(url_for('manager_dashboard'))
+            return jsonify({'success': False, 'error': 'Payment amount cannot exceed current balance.'}), 400
         
-        # Add payment record
         success, message = add_payment(customer_id, manager_id, amount, 'offline', 'completed', None)
         if not success:
-            flash(message, 'error')
-            return redirect(url_for('manager_dashboard'))
+            return jsonify({'success': False, 'error': message}), 400
         
-        # Subtract amount from balance
         success, message = update_customer_balance(customer_id, -amount)
-        flash(message, 'success' if success else 'error')
-        return redirect(url_for('manager_dashboard'))
+        return jsonify({'success': success, 'message': message, 'new_balance': customer['balance'] - amount}), 200
     
     except ValueError:
-        flash('Invalid payment amount.', 'error')
-        return redirect(url_for('manager_dashboard'))
-
+        return jsonify({'success': False, 'error': 'Invalid payment amount.'}), 400
 if __name__ == '__main__':
     app.run(debug=True, port=5002)
