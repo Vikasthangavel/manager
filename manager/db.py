@@ -10,12 +10,13 @@ import pytz
 IST = pytz.timezone('Asia/Kolkata')
 
 # Database configuration from environment variables
+# Database configuration from environment variables
 db_config = {
     'host': os.getenv('DB_HOST', 'localhost'),
     'database': os.getenv('DB_NAME', ''),
     'user': os.getenv('DB_USER', 'root'),
-    'password': os.getenv('DB_PASSWORD', 'root')
-    'port':int(os.getenv('DB_PORT', 3306))
+    'password': os.getenv('DB_PASSWORD', 'root'),
+    'port': int(os.getenv('DB_PORT', 3306))
 }
 
 # Create single connection pool
@@ -27,7 +28,6 @@ def get_connection():
     except Error as e:
         print(f"Error getting connection: {str(e)}")
         return None
-
 def get_user_by_email_and_password(email, password):
     conn = get_connection()
     if not conn:
