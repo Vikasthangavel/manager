@@ -10,41 +10,25 @@ import pytz
 IST = pytz.timezone('Asia/Kolkata')
 
 # Database configuration from environment variables
-db_config_writer = {
-    'host': os.getenv('DB_HOST_WRITER', 'localhost'),
+db_config = {
+    'host': os.getenv('DB_HOST', 'localhost'),
     'database': os.getenv('DB_NAME', ''),
-    'user': os.getenv('DB_USER_WRITER', 'root'),
-    'password': os.getenv('DB_PASSWORD_WRITER', 'root')
+    'user': os.getenv('DB_USER', 'root'),
+    'password': os.getenv('DB_PASSWORD', 'root')
 }
 
-db_config_reader = {
-    'host': os.getenv('DB_HOST_READER', 'localhost'),
-    'database': os.getenv('DB_NAME', ''),
-    'user': os.getenv('DB_USER_READER', 'root'),
-    'password': os.getenv('DB_PASSWORD_READER', 'root')
-}
+# Create single connection pool
+connection_pool = MySQLConnectionPool(pool_name="main_pool", pool_size=5, **db_config)
 
-
-# Create connection pools
-writer_pool = MySQLConnectionPool(pool_name="writer_pool", pool_size=5, **db_config_writer)
-reader_pool = MySQLConnectionPool(pool_name="reader_pool", pool_size=5, **db_config_reader)
-
-def get_writer_connection():
+def get_connection():
     try:
-        return writer_pool.get_connection()
+        return connection_pool.get_connection()
     except Error as e:
-        print(f"Error getting writer connection: {str(e)}")
-        return None
-
-def get_reader_connection():
-    try:
-        return reader_pool.get_connection()
-    except Error as e:
-        print(f"Error getting reader connection: {str(e)}")
+        print(f"Error getting connection: {str(e)}")
         return None
 
 def get_user_by_email_and_password(email, password):
-    conn = get_reader_connection()
+    conn = get_connection()
     if not conn:
         return None
     try:
@@ -57,7 +41,7 @@ def get_user_by_email_and_password(email, password):
         conn.close()
 
 def get_manager_by_email_and_password(email, password):
-    conn = get_reader_connection()
+    conn = get_connection()
     if not conn:
         return None
     try:
@@ -72,7 +56,7 @@ def get_manager_by_email_and_password(email, password):
         conn.close()
 
 def get_customer_by_mobile_and_password(mobile_number, password):
-    conn = get_reader_connection()
+    conn = get_connection()
     if not conn:
         return None
     try:
@@ -87,7 +71,7 @@ def get_customer_by_mobile_and_password(mobile_number, password):
         conn.close()
 
 def get_all_customers(customer_id=None, manager_id=None):
-    conn = get_reader_connection()
+    conn = get_connection()
     if not conn:
         print("Database connection failed in get_all_customers")
         return []
@@ -118,7 +102,7 @@ def get_all_customers(customer_id=None, manager_id=None):
         conn.close()
 
 def get_payment_history(manager_id):
-    conn = get_reader_connection()
+    conn = get_connection()
     if not conn:
         print("Database connection failed in get_payment_history")
         return []
@@ -144,7 +128,7 @@ def get_payment_history(manager_id):
         conn.close()
 
 def add_customer(box_number, mobile_number, name, email, password, plan_amount, address, manager_id, is_temp_password=False):
-    conn = get_writer_connection()
+    conn = get_connection()
     if not conn:
         print("Database connection failed in add_customer")
         return False, "Database connection failed"
@@ -165,7 +149,7 @@ def add_customer(box_number, mobile_number, name, email, password, plan_amount, 
         conn.close()
 
 def update_customer(customer_id, box_number, mobile_number, name, email, password, plan_amount, address, is_temp_password):
-    conn = get_writer_connection()
+    conn = get_connection()
     if not conn:
         return False, "Database connection failed"
     try:
@@ -192,7 +176,7 @@ def update_customer(customer_id, box_number, mobile_number, name, email, passwor
         conn.close()
 
 def delete_customer(customer_id):
-    conn = get_writer_connection()
+    conn = get_connection()
     if not conn:
         return False, "Database connection failed"
     try:
@@ -208,7 +192,7 @@ def delete_customer(customer_id):
         conn.close()
 
 def add_pending_manager(username, email, mobile_number, password):
-    conn = get_writer_connection()
+    conn = get_connection()
     if not conn:
         return False, "Database connection failed"
     try:
@@ -227,7 +211,7 @@ def add_pending_manager(username, email, mobile_number, password):
         conn.close()
 
 def get_pending_managers():
-    conn = get_reader_connection()
+    conn = get_connection()
     if not conn:
         return None
     try:
@@ -240,7 +224,7 @@ def get_pending_managers():
         conn.close()
 
 def approve_manager(pending_user_id):
-    conn = get_writer_connection()
+    conn = get_connection()
     if not conn:
         return False, "Database connection failed"
     try:
@@ -264,7 +248,7 @@ def approve_manager(pending_user_id):
         conn.close()
 
 def reject_manager(pending_user_id):
-    conn = get_writer_connection()
+    conn = get_connection()
     if not conn:
         return False, "Database connection failed"
     try:
@@ -280,7 +264,7 @@ def reject_manager(pending_user_id):
         conn.close()
 
 def update_customer_balance(customer_id, amount):
-    conn = get_writer_connection()
+    conn = get_connection()
     if not conn:
         return False, "Database connection failed"
     try:
@@ -308,7 +292,7 @@ def update_customer_balance(customer_id, amount):
         conn.close()
 
 def add_payment(customer_id, manager_id, amount, payment_mode, payment_status, payment_reference, payment_date=None, created_at=None):
-    conn = get_writer_connection()
+    conn = get_connection()
     if not conn:
         return False, "Database connection failed"
     try:
