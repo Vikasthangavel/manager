@@ -897,33 +897,75 @@
 
     // Submit payment
     function submitPayment() {
-        const customerId = document.getElementById('paymentCustomerId').value;
-        const amount = document.getElementById('paymentAmount').value;
+    const customerId = document.getElementById('paymentCustomerId').value;
+    const amount = document.getElementById('paymentAmount').value;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-        if (!amount || amount <= 0) {
-            showNotification('Please enter a valid amount.', 'error');
-            return;
-        }
-
-        showLoading();
-        $.ajax({
-            url: '/pay_offline/' + customerId,
-            type: 'POST',
-            data: { customer_id: customerId, amount: amount },
-            success: function(response) {
-                hideLoading();
-                showNotification('Payment submitted successfully.', 'success');
-                closePaymentModal();
-                setTimeout(() => location.reload(), 2000);
-            },
-            error: function(xhr) {
-                hideLoading();
-                const errorMessage = xhr.responseJSON?.error || 'Failed to submit payment.';
-                showNotification(errorMessage, 'error');
-            }
-        });
+    if (!amount || amount <= 0) {
+        showNotification('Please enter a valid amount.', 'error');
+        return;
     }
 
+    showLoading();
+    $.ajax({
+        url: '/pay_offline/' + customerId,
+        type: 'POST',
+        data: { customer_id: customerId, amount: amount },
+        headers: {
+            'X-CSRF-Token': csrfToken // Include CSRF token
+        },
+        dataType: 'json', // Expect JSON response
+        success: function(response) {
+            hideLoading();
+            if (response.success) {
+                showNotification(response.message, 'success');
+                closePaymentModal();
+                // Update the customer table dynamically
+                updateCustomerTable(customerId, amount);
+            } else {
+                showNotification(response.error, 'error');
+            }
+        },
+        error: function(xhr) {
+            hideLoading();
+            let errorMessage = 'Failed to submit payment.';
+            try {
+                const response = JSON.parse(xhr.responseText);
+                errorMessage = response.error || errorMessage;
+            } catch (e) {
+                errorMessage = 'An unexpected error occurred.';
+            }
+            showNotification(errorMessage, 'error');
+        }
+    });
+}
+
+// Function to update customer table dynamically
+function updateCustomerTable(customerId, paidAmount) {
+    // Find the row in the desktop table
+    $('#customer-table tbody tr').each(function() {
+        const row = $(this);
+        const rowCustomerId = row.find('td').eq(0).text(); // Assuming box_number is unique
+        if (rowCustomerId === customers.find(c => c.id == customerId).box_number) {
+            const balanceCell = row.find('td').eq(3);
+            let currentBalance = parseFloat(balanceCell.text());
+            currentBalance -= parseFloat(paidAmount);
+            balanceCell.text(currentBalance.toFixed(2));
+        }
+    });
+
+    // Update mobile cards
+    $('.md\\:hidden .bg-white').each(function() {
+        const card = $(this);
+        const cardBoxNumber = card.find('p').eq(0).text().split(':')[1].trim();
+        if (cardBoxNumber === customers.find(c => c.id == customerId).box_number) {
+            const balanceElement = card.find('p').eq(3);
+            let currentBalance = parseFloat(balanceElement.text().split(':')[1].trim());
+            currentBalance -= parseFloat(paidAmount);
+            balanceElement.html(`<strong>Balance:</strong> ${currentBalance.toFixed(2)}`);
+        }
+    });
+}
     // Filter table and mobile cards for view-customers section
     function filterTable() {
         showLoading();
